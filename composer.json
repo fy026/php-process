@@ -1,22 +1,18 @@
 {
     "name": "fy026/php-process",
-    "description": "php多线程",
-    "type": "library",
-    "license": "MIT",
-    "minimum-stability": "stable",
+    "description": "php process",
+    "type": "MIT",
     "authors": [
         {
             "name": "fy026",
-            "email": "642921295@qq.com"
+            "email": "sh0026@126.com"
         }
     ],
+    "minimum-stability": "dev",
+    "require": {},
     "autoload": {
         "psr-4": {
-            "AutoTest\\": "./src"
+            "PHPProcess\\": "src/"
         }
-    },
-    "require": {
-        "php": ">=5.5.9"
     }
-
 }

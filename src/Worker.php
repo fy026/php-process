@@ -1,5 +1,5 @@
 <?PHP
-namespace PHP-Process
+namespace PHPProcess
 
 class Worker{
     public static $log_file = '';
