@@ -73,7 +73,7 @@ class Worker{
     // 初始化日志目录等等
     public static function init(){
 
-        //$temp_dir = sys_get_temp_dir() . '/myworker/';
+        
         $temp_dir = __DIR__.'/tmp/';
 
         if (!is_dir($temp_dir) && !mkdir($temp_dir)) {
@@ -144,12 +144,24 @@ class Worker{
                 break;
             case 'stop':
                 //停止进程
-                //必须exit退出
+                $master_id && posix_kill($master_id, SIGINT);
+                //只要还没杀死master，就一直杀
+                while ($master_id && posix_kill($master_id, 0)) {
+                    usleep(300000);
+                }
                 exit(0);
                 break;
             case 'status':
                 //查看状态
-                //必须exit退出
+                if(is_file(static::$status_file)){
+                    //先删除就得status文件
+                    @unlink(static::$status_file);
+                }
+                //给master发送信号
+                posix_kill($master_id,SIGUSR2);
+                //等待worker进程往status文件里写入状态
+                usleep(300000);
+                @readfile(static::$status_file);
                 exit(0);
                 break;
             default:
@@ -208,10 +220,10 @@ class Worker{
     public static function signalHandler($signal){
         switch ($signal) {
             case SIGINT: // Stop.
-                //static::stopAll();
+                static::stopAll();
                 break;
             case SIGUSR2: // Show status.
-                //static::writeStatus();
+                static::writeStatus();
                 break;
         }
     }
@@ -298,6 +310,47 @@ class Worker{
                     static::forkOneWorker(static::$instance);
                 }
             }
+        }
+    }
+
+    public static function writeStatus(){
+        $pid = posix_getpid();
+    
+        if($pid == static::$master_pid){ //master进程
+    
+            $master_alive = static::$master_pid&& posix_kill(static::$master_pid,0);
+            $master_alive = $master_alive ? 'is running' : 'die';
+               $result = file_put_contents(static::$status_file, 'master[' . static::$master_pid . '] ' . $master_alive . PHP_EOL, FILE_APPEND | LOCK_EX);
+            //给worker进程发信号
+            foreach(static::$workers as $pid){
+                posix_kill($pid,SIGUSR2);
+            }
+        }else{ //worker进程
+    
+            $name = 'worker[' . $pid . ']';
+            $alive = $pid && posix_kill($pid, 0);
+            $alive = $alive ? 'is running' : 'die';
+            file_put_contents(static::$status_file, $name . ' ' . $alive . PHP_EOL, FILE_APPEND | LOCK_EX);
+        }
+    }
+
+    public static function stopAll(){
+
+        $pid = posix_getpid();
+
+        if($pid == static::$master_pid){ //master进程
+            //将当前状态设为停止，否则子进程一退出master重新fork
+            static::$status = static::STATUS_SHUTDOWN;
+            //通知子进程退出
+            foreach(static::$workers as $pid){
+                posix_kill($pid,SIGINT);
+            }
+            //删除pid文件
+            @unlink(static::$pid_file);
+            exit(0);
+        }else{ //worker进程
+            static::log('worker[' . $pid .'] stop');
+            exit(0);
         }
     }
 
