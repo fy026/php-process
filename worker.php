@@ -29,6 +29,14 @@ class Worker{
     //worker启动时的回调方法
     public $onWorkerStart = null;
 
+     //记录当前进程的状态
+     public static $status = 0;
+
+     //运行中
+     const STATUS_RUNNING = 1;
+     //停止
+     const STATUS_SHUTDOWN = 2;
+
     public function __construct(){
         static::$instance = $this;
     }
@@ -42,6 +50,7 @@ class Worker{
         static::installSignal();
         static::resetStd();
         static::forkWorkers();
+        static::monitorWorkers();
     }
 
     //检查环境
@@ -236,7 +245,7 @@ class Worker{
     public static function forkOneWorker($instance){
         $pid = pcntl_fork();
         if($pid > 0){
-            static::$workers[$pid] = $pid;
+            static::$workers[$pid] = $pid; //master进程保持子进程id
         }elseif($pid == 0){
             static::log('创建了一个worker');
             static::setProcessTitle('myworker process');
@@ -266,6 +275,29 @@ class Worker{
         while (1) {
             pcntl_signal_dispatch();
             sleep(1);
+        }
+    }
+
+    public static function monitorWorkers(){
+        //设置当前状态为运行中
+        static::$status = static::STATUS_RUNNING;
+        while (1) {
+            pcntl_signal_dispatch();
+            $status = 0;
+            //阻塞，等待子进程退出
+            $pid = pcntl_wait($status, WUNTRACED);
+
+            self::log("worker[ $pid ] exit with signal:".pcntl_wstopsig($status));
+
+            pcntl_signal_dispatch();
+            //child exit
+            if ($pid > 0) {
+                //意外退出时才重新fork，如果是我们想让worker退出，status = STATUS_SHUTDOWN
+                if (static::$status != static::STATUS_SHUTDOWN) {
+                    unset(static::$workers[$pid]);
+                    static::forkOneWorker(static::$instance);
+                }
+            }
         }
     }
 
