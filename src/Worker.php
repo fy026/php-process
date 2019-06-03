@@ -1,7 +1,7 @@
 <?PHP
 namespace PHPProcess
 
-class Worker{
+class Worker {
     public static $log_file = '';
 
     //将master进程id保存到这个文件中
