@@ -1,6 +1,6 @@
 <?PHP
 require_once __DIR__ . '/vendor/autoload.php';
-use PHPProcess\Worker
+use PHPProcess\Worker;
 
 $worker = new Worker();
 
