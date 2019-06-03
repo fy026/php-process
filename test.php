@@ -1,7 +1,6 @@
 <?PHP
-define('PROJECT_ROOT',dirname(__FILE__));
-
-require PROJECT_ROOT.'/worker.php';
+require_once __DIR__ . '/vendor/autoload.php';
+use PHPProcess\Worker
 
 $worker = new Worker();
 
